@@ -9,7 +9,7 @@ from collections import defaultdict
 
 app = Flask(__name__)
 
-replies=[hello, giveOrTake, give, take, give_name, take_name]
+replies=[hello, giveOrTake, give, take, give_name, take_name, give_image]
 context=defaultdict(dict)
 
 #TODO: load conversations from file
@@ -44,7 +44,7 @@ def bot():
 	if context[msg_dict['From']]['conv_status'] == -1:
 		del context[msg_dict['From']]['conv_status']
 		save_details({'number': msg_dict['From'], **context[msg_dict['From']]})
-		context[msg_dict['From']]['conv_status']=0
+		del context[msg_dict['From']]
 	msg.body(reply)
 	return str(resp)
 
