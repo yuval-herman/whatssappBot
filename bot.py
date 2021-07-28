@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file
+from flask import Flask, request, send_file, render_template
 import requests
 from twilio.twiml.messaging_response import MessagingResponse
 
@@ -6,29 +6,27 @@ from conversation import *
 from helper import *
 from pprint import pprint
 from collections import defaultdict
+import pandas
 
 app = Flask(__name__)
 
 replies=[hello, giveOrTake, give, take, give_name, take_name, give_image]
 context=defaultdict(dict)
+conversations=defaultdict(str)
 
-#TODO: load conversations from file
-convs=[]
+@app.route('/contacts', methods=['GET'])
+def contacts():
+	return pandas.read_csv('contacts.csv').to_html(escape=False)
 
-def saveContact(contact):
-	with open('contacts.txt', 'r+') as doc:
-		if contact not in doc.read():
-			doc.write(contact) #read() made pointer go to the end of the file so now we can append safely
-			return False #if not already known
-	return True
-
-@app.route('/data', methods=['GET'])
-def data():
-	return send_file('contacts.csv')
+@app.route('/conversation', methods=['GET', 'POST'])
+def conversation():
+	if request.method == 'POST': #probably a button press (not necessarily though)
+		print(request.form.getlist('number'))
+	return render_template('table.html', data_list=csv_to_list('conversations.csv'))
 
 @app.route('/bot', methods=['POST'])
 def bot():
-	global replies, context
+	global replies, context, conversations
 	msg_dict = request.values
 	
 	incoming_msg = msg_dict['Body']
@@ -41,7 +39,12 @@ def bot():
 	known=saveContact(msg_dict['From'])
 	pprint(context[msg_dict['From']])
 	context[msg_dict['From']]['conv_status'], reply = replies[context[msg_dict['From']]['conv_status']](msg_dict, context[msg_dict['From']])
+	
+	conversations[msg_dict['From']]+='שולח:{}\n\n"{}"\n\nשולח:בוט\n\n"{}"\n'.format(msg_dict['From'], msg_dict['Body'], reply)
+	
 	if context[msg_dict['From']]['conv_status'] == -1:
+		saveConversation(conversations[msg_dict['From']], msg_dict['From'])
+		del conversations[msg_dict['From']]
 		del context[msg_dict['From']]['conv_status']
 		save_details({'number': msg_dict['From'], **context[msg_dict['From']]})
 		del context[msg_dict['From']]
